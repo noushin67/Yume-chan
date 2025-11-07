@@ -1,31 +1,146 @@
-								const fs = require("fs");
-const path = require("path");
+const moment = require("moment-timezone");
 
 module.exports = {
-  name: "help",
-  description: "📜 Shows all commands of the bot in one list",
-  author: "Mahiru Chan 💫",
+  config: {
+    name: "help",
+    version: "5.0",
+    author: "Watashi Sajib",
+    countDown: 5,
+    role: 0,
+    description: "Show categorized command list with page system 💫",
+    category: "system"
+  },
 
-  execute(api, event) {
-    const cmdPath = path.join(__dirname);
-    const files = fs.readdirSync(cmdPath).filter(f => f.endsWith(".js"));
+  onStart: async function ({ api, event, message }) {
+    const prefix = global.GoatBot.config.prefix || "+";
+    const time = moment.tz("Asia/Dhaka").format("hh:mm A, dddd, DD MMMM YYYY");
 
-    let msg = "╭━━━🌸『 𝑴𝒂𝒉𝒊𝒓𝒖 𝑪𝒉𝒂𝒏 𝑩𝒐𝒕 』🌸━━━╮\n";
-    msg += "┃ 💫 Prefix: +\n";
-    msg += `┃ 💬 Total Commands: ${files.length}\n`;
-    msg += "┃──────────────────────────\n";
+    const pages = [
+      {
+        title: "🌸 Basic Commands 🌸",
+        body: `
+💬 ${prefix}help — Show this help menu  
+💬 ${prefix}prefix — Show current prefix info  
+💬 ${prefix}owner — Show owner information  
+💬 ${prefix}time — Show current time ⏰  
+        `
+      },
+      {
+        title: "💞 Fun Commands 💞",
+        body: `
+💘 ${prefix}pair — Random love pair (with pfp)  
+🐥 ${prefix}babu — Cute random message  
+🌷 ${prefix}mae — Sweet message for Mae  
+🎮 ${prefix}4k — Send random 4K videos  
+👀 ${prefix}spy — Spy on user messages 😳  
+        `
+      },
+      {
+        title: "⚙️ Config Commands ⚙️",
+        body: `
+🔧 ${prefix}prefix reset — Reset group prefix  
+🔧 ${prefix}prefix <new> — Change prefix  
+🔧 ${prefix}prefix -g — Change system prefix (admin)  
+        `
+      }
+    ];
 
-    files.forEach((file, i) => {
-      const name = file.replace(".js", "");
-      msg += `┃ ${i + 1}. 💠 ${name}\n`;
+    // Start on first page
+    let page = 0;
+
+    const sendPage = () => {
+      const content = `
+${pages[page].title}
+
+${pages[page].body}
+
+──────────────────────
+📘 Page ${page + 1}/${pages.length}
+🕰️ ${time}
+👑 Owner: 𝑾𝒂𝒕𝒂𝒔𝒉𝒊 𝑺𝒂𝒋𝒊𝒃 💫
+🌸 Bot: 𝑴𝒂𝒉𝒊𝒓𝒖 𝑪𝒉𝒂𝒏 🌸
+──────────────────────
+
+⏪ React '⬅️' for Previous | React '➡️' for Next
+`;
+
+      message.reply(content, (err, info) => {
+        global.GoatBot.onReaction.set(info.messageID, {
+          name: "help",
+          author: event.senderID,
+          page,
+          messageID: info.messageID
+        });
+      });
+    };
+
+    sendPage();
+  },
+
+  onReaction: async function ({ message, event, Reaction }) {
+    const { author, page, messageID } = Reaction;
+    if (event.userID !== author) return;
+
+    const prefix = global.GoatBot.config.prefix || "+";
+    const time = moment.tz("Asia/Dhaka").format("hh:mm A, dddd, DD MMMM YYYY");
+
+    const pages = [
+      {
+        title: "🌸 Basic Commands 🌸",
+        body: `
+💬 ${prefix}help — Show this help menu  
+💬 ${prefix}prefix — Show current prefix info  
+💬 ${prefix}owner — Show owner information  
+💬 ${prefix}time — Show current time ⏰  
+        `
+      },
+      {
+        title: "💞 Fun Commands 💞",
+        body: `
+💘 ${prefix}pair — Random love pair (with pfp)  
+🐥 ${prefix}babu — Cute random message  
+🌷 ${prefix}mae — Sweet message for Mae  
+🎮 ${prefix}4k — Send random 4K videos  
+👀 ${prefix}spy — Spy on user messages 😳  
+        `
+      },
+      {
+        title: "⚙️ Config Commands ⚙️",
+        body: `
+🔧 ${prefix}prefix reset — Reset group prefix  
+🔧 ${prefix}prefix <new> — Change prefix  
+🔧 ${prefix}prefix -g — Change system prefix (admin)  
+        `
+      }
+    ];
+
+    let newPage = page;
+    if (event.reaction === "⬅️") newPage = (page - 1 + pages.length) % pages.length;
+    else if (event.reaction === "➡️") newPage = (page + 1) % pages.length;
+    else return;
+
+    const newMsg = `
+${pages[newPage].title}
+
+${pages[newPage].body}
+
+──────────────────────
+📘 Page ${newPage + 1}/${pages.length}
+🕰️ ${time}
+👑 Owner: 𝑾𝒂𝒕𝒂𝒔𝒉𝒊 𝑺𝒂𝒋𝒊𝒃 💫
+🌸 Bot: 𝑴𝒂𝒉𝒊𝒓𝒖 𝑪𝒉𝒂𝒏 🌸
+──────────────────────
+
+⏪ React '⬅️' for Previous | React '➡️' for Next
+`;
+
+    message.editMessage(messageID, newMsg, (err, info) => {
+      global.GoatBot.onReaction.set(info.messageID, {
+        name: "help",
+        author,
+        page: newPage,
+        messageID: info.messageID
+      });
     });
-
-    msg += "┃──────────────────────────\n";
-    msg += "┃ 💠 𝘿𝙚𝙫: 𝐖𝐚𝐭𝐚𝐬𝐡𝐢 𝐒𝐚𝐣𝐢𝐛 💫\n";
-    msg += "┃ 💌 FB: 💋💦";
-    msg += "╰━━━━━━━━━━━━━━━━━━━━━━╯\n";
-    msg += "🎧 Sing • React • Feel • Heal 🌸";
-
-    api.sendMessage(msg, event.threadID, event.messageID);
   }
-};
+};								
