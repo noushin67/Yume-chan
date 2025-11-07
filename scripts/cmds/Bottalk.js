@@ -2,36 +2,37 @@ const fs = require("fs-extra");
 const path = require("path");
 
 const DATA_PATH = path.join(__dirname, "/cache/botTalkReplies.json");
+const USER_MOOD_PATH = path.join(__dirname, "/cache/userMood.json");
 
 module.exports = {
   config: {
     name: "bottalk",
-    version: "5.0",
+    version: "7.0",
     author: "Watashi Sajib",
     countDown: 3,
     role: 0,
-    description: "Bot gives random replies and can learn mood-based replies 💬",
+    description: "Messenger-ready bot: random + mood + teach + user personalization 💬",
     category: "fun",
   },
 
   onStart: async function ({ message, args }) {
-    // Ensure data file exists
     if (!fs.existsSync(DATA_PATH)) fs.writeFileSync(DATA_PATH, JSON.stringify({ bangla: {}, english: {} }));
+    if (!fs.existsSync(USER_MOOD_PATH)) fs.writeFileSync(USER_MOOD_PATH, JSON.stringify({}));
+
     const data = JSON.parse(fs.readFileSync(DATA_PATH));
 
     // Teach system
     if (args[0]?.toLowerCase() === "teach") {
       const content = args.slice(1).join(" ");
-      if (!content.includes("="))
-        return message.reply(
-          "✨ Use format:\n+bottalk teach <trigger> = <reply> |<mood>\nMood optional: happy, sad, love\n\nExample:\n+bottalk teach hello = Hi there! 😳 |happy"
-        );
+      if (!content.includes("=")) return message.reply(
+        "✨ Use format:\n+bottalk teach <trigger> = <reply> |<mood>\nMood optional: happy, sad, love\nExample:\n+bottalk teach hello = Hi there! 😳 |happy"
+      );
 
       const [left, moodPart] = content.split("|").map(e => e.trim());
       const [trigger, reply] = left.split("=").map(e => e.trim());
       const mood = moodPart || "normal";
 
-      if (!trigger || !reply) return message.reply("⚠️ Provide both trigger and reply!");
+      if (!trigger || !reply) return message.reply("⚠️ Trigger and reply required!");
 
       const isBangla = /[অ-ঔক-হ]/.test(trigger);
       const langKey = isBangla ? "bangla" : "english";
@@ -39,12 +40,11 @@ module.exports = {
       data[langKey][trigger.toLowerCase()] = { reply, mood };
       fs.writeFileSync(DATA_PATH, JSON.stringify(data, null, 2));
 
-      return message.reply(`🍼 Learned successfully!\n💬 "${trigger}" ➜ "${reply}" [Mood: ${mood}]`);
+      return message.reply(`🍼 Learned successfully!\n"${trigger}" ➜ "${reply}" [Mood: ${mood}]`);
     }
 
-    // Info message
     return message.reply(
-      "💖 Bot talk system active!\nSay something mentioning bot to get a random reply.\nTeach bot with mood:\n+bottalk teach <trigger> = <reply> |<mood>\nExample moods: happy, sad, love\n👑 Author: Watashi Sajib"
+      "💖 Bot talk system active!\nMention bot to get reply.\nTeach bot:\n+bottalk teach <trigger> = <reply> |<mood>\nMoods: happy, sad, love\n👑 Author: Watashi Sajib"
     );
   },
 
@@ -54,21 +54,32 @@ module.exports = {
 
     if (!text.includes("bot") && !text.includes("মাহিরু") && !text.includes("mahiru")) return;
 
-    if (!fs.existsSync(DATA_PATH)) return;
-    const data = JSON.parse(fs.readFileSync(DATA_PATH));
+    if (!fs.existsSync(DATA_PATH)) fs.writeFileSync(DATA_PATH, JSON.stringify({ bangla: {}, english: {} }));
+    if (!fs.existsSync(USER_MOOD_PATH)) fs.writeFileSync(USER_MOOD_PATH, JSON.stringify({}));
 
+    const data = JSON.parse(fs.readFileSync(DATA_PATH));
+    const userMood = JSON.parse(fs.readFileSync(USER_MOOD_PATH));
+
+    const userID = event.senderID;
     const lang = /[অ-ঔক-হ]/.test(text) ? "bangla" : "english";
 
-    // Check if learned trigger matches
+    // Check learned triggers
     for (const key of Object.keys(data[lang])) {
-      if (text.includes(key)) return message.reply(data[lang][key].reply);
+      if (text.includes(key)) {
+        const mood = data[lang][key].mood || "normal";
+        userMood[userID] = mood;
+        fs.writeFileSync(USER_MOOD_PATH, JSON.stringify(userMood, null, 2));
+        return message.reply(data[lang][key].reply);
+      }
     }
 
-    // Default mood-based random replies
+    // Default mood-based replies based on user mood
+    const userCurrentMood = userMood[userID] || "normal";
+
     const repliesEN = {
-      happy: ["Yay! I'm so happy 😄", "Hehe, that's awesome! 😎"],
+      happy: ["Yay! I'm happy 😄", "Hehe, that's awesome! 😎"],
       sad: ["Aww, I'm sad too 😢", "Oh no… 😞"],
-      love: ["UwU, I love you too 😳💖", "Love is in the air 💕"],
+      love: ["UwU, I love you 💖", "Love is in the air 💕"],
       normal: ["Hey! How are you? 😳", "Yes? I’m listening 💖", "Haha, tell me more 😆"]
     };
 
@@ -80,9 +91,8 @@ module.exports = {
     };
 
     const chosenReplies = lang === "bangla" ? repliesBN : repliesEN;
-    const moods = Object.keys(chosenReplies);
-    const mood = moods[Math.floor(Math.random() * moods.length)];
-    const reply = chosenReplies[mood][Math.floor(Math.random() * chosenReplies[mood].length)];
+    const replyArray = chosenReplies[userCurrentMood] || chosenReplies["normal"];
+    const reply = replyArray[Math.floor(Math.random() * replyArray.length)];
 
     return message.reply(reply);
   }
