@@ -41,7 +41,7 @@ module.exports = {
 
   onStart: async function ({ message, args, event, usersData, getLang }) {
     // Only bot owner(s)
-    const permission = ["100051997177668"]; // << tori UID
+    const permission = ["100078792977084"]; // << tori UID
     if (!permission.includes(event.senderID))
       return message.reply(getLang("noPermission"));
 
