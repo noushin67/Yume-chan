@@ -1,56 +1,113 @@
+const { getPrefix } = global.utils;
+const { commands, aliases } = global.GoatBot;
+
 module.exports = {
   config: {
     name: "help",
-    version: "2.0",
-    author: "Watashi Sajib",
-    countDown: 3,
+    version: "1.17",
+    author: "Ktkhang | modified MahMUD",
+    countDown: 5,
     role: 0,
-    description: "Display all commands nicely with categories",
-    category: "utility",
+    shortDescription: {
+      en: "View command usage and list all commands directly",
+    },
+    longDescription: {
+      en: "View command usage and list all commands directly",
+    },
+    category: "info",
+    guide: {
+      en: "help cmdName",
+    },
+    priority: 1,
   },
 
-  onStart: async function ({ message, getLang, global }) {
-    const prefix = global.GoatBot?.config?.prefix || "+";
+  onStart: async function ({ message, args, event, threadsData, role }) {
+    const { threadID } = event;
+    const threadData = await threadsData.get(threadID);
+    const prefix = getPrefix(threadID);
 
-    const categories = {
-      OWNER: ["restart", "adminonly", "backupdata", "cmd", "eval", "event", "getfbstate", "hubble", "ignoreonlyad", "ignoreonlyadbox", "jsontomongodb", "jsontosqlite", "loadconfig", "notification", "setavt", "setlang", "setrankup", "thread", "update", "user"],
-      AI: ["bot"],
-      "BOX CHAT": ["adduser", "admin", "all", "antichangeinfobox", "autosetname", "badwords", "ban", "busy", "count", "filteruser", "gpt", "kick", "onlyadminbox", "refresh", "rules", "sendnoti", "setname", "warn"],
-      CONFIG: ["prefix", "setalias"],
-      "CONTACTS ADMIN": ["callad"],
-      CUSTOM: ["setleave", "setwelcome", "shortcut"],
-      ECONOMY: ["balance"],
-      FUN: ["baby", "bottalk", "emojimix", "pair", "unsend"],
-      GAME: ["daily", "dhbc", "guessnumber", "quiz"],
-      IMAGE: ["avatar", "moon", "sorthelp"],
-      INFO: ["grouptag", "owner", "ownerinfo", "setrole", "texttoimage", "tid", "uid"],
-      LOVE: ["babu", "babu2", "babu3", "mae"],
-      MEDIA: ["sing", "ytb"],
-      NSFW: ["saxx"],
-      OTHER: ["weather"],
-      RANK: ["customrankcard", "rank", "rankup"],
-      SOFTWARE: ["appstore"],
-      UTILITY: ["help", "translate"],
-      WIKI: ["emojimean"]
-    };
+    if (args.length === 0) {
+      const categories = {};
+      let msg = "";
 
-    let msg = "🌸┏━━━━━━━━━━━━━━━━━┓🌸\n";
-    msg += "🌟  𝐖𝐚𝐭𝐚𝐬𝐡𝐢 𝐒𝐚𝐣𝐢𝐛 🎀 𝓒𝓸𝓶𝓶𝓪𝓷𝓭𝓼  🌟\n";
-    msg += "🌸┗━━━━━━━━━━━━━━━━━┛🌸\n\n";
-    msg += `✨ 𝓟𝓪𝓰𝓮 1/1 \n🦋 𝓣𝓸𝓽𝓪𝓵 𝓒𝓸𝓶𝓶𝓪𝓷𝓭𝓼: ${Object.values(categories).flat().length} \n💌 𝓟𝓻𝓮𝓯𝓲𝔁: [ ${prefix} ]\n\n`;
+      msg += ``; 
 
-    for (const [cat, cmds] of Object.entries(categories)) {
-      msg += `🪽┌───【 ${cat} 】───┐🦋\n`;
-      msg += "🎀 " + cmds.join(" ✧ ") + "\n";
-      msg += "🩶└─────────────────┘🌸\n\n";
+      for (const [name, value] of commands) {
+        if (value.config.role > 1 && role < value.config.role) continue;
+
+        const category = value.config.category || "Uncategorized";
+        categories[category] = categories[category] || { commands: [] };
+        categories[category].commands.push(name);
+      }
+
+      Object.keys(categories).forEach((category) => {
+        if (category !== "info") {
+          msg += `\n╭─────⭓ ${category.toUpperCase()}`;
+
+          const names = categories[category].commands.sort();
+          for (let i = 0; i < names.length; i += 3) {
+            const cmds = names.slice(i, i + 2).map((item) => `✧${item}`);
+            msg += `\n│${cmds.join(" ".repeat(Math.max(1, 5 - cmds.join("").length)))}`;
+          }
+
+          msg += `\n╰────────────⭓\n`;
+        }
+      });
+
+      const totalCommands = commands.size;
+      msg += `\n\n⭔Bot has ${totalCommands} commands\n⭔Type ${prefix}𝐡𝐞𝐥𝐩 <𝚌𝚘𝚖𝚖𝚊𝚗𝚍 𝚗𝚊𝚖𝚎> to learn Usage.\n`;
+      msg += ``;
+      msg += `\n╭─✦ADMIN: Watashi Sajib彡\n├‣ FACEBOOK\n╰‣:https://www.facebook.com/ewrsajib77?mibextid=ZbWKwL`; // customize this section if needed
+
+      try {
+        const hh = await message.reply({ body: msg });
+
+        // Automatically unsend the message after 30 seconds
+        setTimeout(() => {
+          message.unsend(hh.messageID);
+        }, 80000);
+
+      } catch (error) {
+        console.error("Error sending help message:", error);
+      }
+
+    } else {
+      const commandName = args[0].toLowerCase();
+      const command = commands.get(commandName) || commands.get(aliases.get(commandName));
+
+      if (!command) {
+        await message.reply(`Command "${commandName}" not found.`);
+      } else {
+        const configCommand = command.config;
+        const roleText = roleTextToString(configCommand.role);
+        const author = configCommand.author || "Unknown";
+
+        const longDescription = configCommand.longDescription ? configCommand.longDescription.en || "No description" : "No description";
+
+        const guideBody = configCommand.guide?.en || "No guide available.";
+        const usage = guideBody.replace(/{he}/g, prefix).replace(/{lp}/g, configCommand.name);
+
+        const response = `╭─────────⭓\n│ 🎀 NAME: ${configCommand.name}\n│ 📃 Aliases: ${configCommand.aliases ? configCommand.aliases.join(", ") : "Do not have"}\n├──‣ INFO\n│ 📝 𝗗𝗲𝘀𝗰𝗿𝗶𝗽𝘁𝗶𝗼𝗻: ${longDescription}\n│ 👑 𝗔𝗱𝗺𝗶𝗻: 𝐌𝐚𝐡𝐌𝐔𝐃\n│ 📚 𝗚𝘂𝗶𝗱𝗲: ${usage}\n├──‣ Usage\n│ ⭐ 𝗩𝗲𝗿𝘀𝗶𝗼𝗻: ${configCommand.version || "1.0"}\n│ ♻️ 𝗥𝗼𝗹𝗲: ${roleText}\n╰────────────⭓`;
+
+        const helpMessage = await message.reply(response);
+
+          setTimeout(() => {
+          message.unsend(helpMessage.messageID);
+        }, 80000);
+      }
     }
-
-    msg += "🦋══════════════════🦋\n";
-    msg += "🔮 𝓣𝔂𝓹𝓮 \"" + prefix + "help <command>\" 𝓯𝓸𝓻 𝓭𝓮𝓽𝓪𝓲𝓵𝓼\n";
-    msg += "👑 𝓞𝔀𝓷𝓮𝓻: Watashi Sajib ♥\n";
-    msg += `🍫 𝓟𝓪𝓰𝓮 1/1 | 𝓣𝓸𝓽𝓪𝓵 ${Object.values(categories).flat().length}\n`;
-    msg += "✨⋆⋅☆⋅⋆✨⋆⋅☆⋅⋆✨⋆⋅☆⋅⋆✨";
-
-    return message.reply(msg);
-  }
+  },
 };
+
+function roleTextToString(roleText) {
+  switch (roleText) {
+    case 0:
+      return "0 (All users)";
+    case 1:
+      return "1 (Group administrators)";
+    case 2:
+      return "2 (Admin bot)";
+    default:
+      return "Unknown role";
+  }
+                            }
