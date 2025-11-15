@@ -1,4 +1,4 @@
-const Canvas = require("canvas");
+ Canvas = require("canvas");
 const { uploadZippyshare } = global.utils;
 
 const defaultFontName = "BeVietnamPro-SemiBold";
@@ -9,7 +9,7 @@ const percentage = total => total / 100;
 Canvas.registerFont(`${__dirname}/assets/font/BeVietnamPro-Bold.ttf`, {
 	family: "BeVietnamPro-Bold"
 });
-Canvas.registerFont(defaultPathFontName, {
+Canvas.registeFont(defaultPathFontName, {
 	family: defaultFontName
 });
 
